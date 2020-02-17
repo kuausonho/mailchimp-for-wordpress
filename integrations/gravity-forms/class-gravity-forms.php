@@ -36,6 +36,10 @@ class MC4WP_Gravity_Forms_Integration extends MC4WP_Integration {
 		$mailchimp_list_id = '';
 		$double_optin      = $this->options['double_optin'];
 
+		var_dump( $submission );
+		var_dump( $form );
+		exit;
+
 		// find email field & checkbox value
 		foreach ( $form['fields'] as $field ) {
 			if ( $field->type === 'email' && empty( $email_address ) && ! empty( $submission[ $field->id ] ) ) {
@@ -52,7 +56,12 @@ class MC4WP_Gravity_Forms_Integration extends MC4WP_Integration {
 			}
 		}
 
-		if ( ! $subscribe || empty( $email_address ) ) {
+		if ( ! $subscribe ) {
+			return;
+		}
+
+		if ( $email_address === '' ) {
+			$this->get_log()->warning( 'Gravity Forms > Could not find email address value in form.' );
 			return;
 		}
 
