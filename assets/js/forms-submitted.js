@@ -8,26 +8,32 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "d
 var submittedForm = window.mc4wp_submitted_form;
 var forms = window.mc4wp.forms;
 
-function trigger(event, args) {
-  forms.trigger(args[0].id + '.' + event, args);
-  forms.trigger(event, args);
-}
+var populate = require('populate.js');
 
-function handleFormRequest(form, eventName, errors, data) {
+function handleFormRequest(el, evtName, errors, data) {
+  var trigger = function trigger(evtName, args) {
+    forms.trigger(el, args[0].id + '.' + evtName, args);
+    forms.trigger(el, evtName, args);
+  };
+
   var timeStart = Date.now();
   var pageHeight = document.body.clientHeight; // re-populate form if an error occurred
 
   if (errors) {
-    form.setData(data);
+    populate(el, data);
   } // scroll to form
 
 
   if (window.scrollY <= 10 && submittedForm.auto_scroll) {
-    (0, _scrollToElement["default"])(form.element);
+    (0, _scrollToElement["default"])(el);
   } // trigger events on window.load so all other scripts have loaded
 
 
   window.addEventListener('load', function () {
+    var form = {
+      name: el.getAttribute('data-name'),
+      id: el.getAttribute('data-id')
+    };
     trigger('submitted', [form]);
 
     if (errors) {
@@ -36,9 +42,9 @@ function handleFormRequest(form, eventName, errors, data) {
       // form was successfully submitted
       trigger('success', [form, data]); // subscribed / unsubscribed
 
-      trigger(eventName, [form, data]); // for BC: always trigger "subscribed" event when firing "updated_subscriber" event
+      trigger(evtName, [form, data]); // for BC: always trigger "subscribed" event when firing "updated_subscriber" event
 
-      if (eventName === 'updated_subscriber') {
+      if (evtName === 'updated_subscriber') {
         trigger('subscribed', [form, data, true]);
       }
     } // scroll to form again if page height changed since last scroll, eg because of slow loading images
@@ -48,18 +54,16 @@ function handleFormRequest(form, eventName, errors, data) {
     var timeElapsed = Date.now() - timeStart;
 
     if (submittedForm.auto_scroll && timeElapsed > 1000 && timeElapsed < 2000 && document.body.clientHeight !== pageHeight) {
-      (0, _scrollToElement["default"])(form.element);
+      (0, _scrollToElement["default"])(el);
     }
   });
 }
 
 if (submittedForm) {
-  var element = document.getElementById(submittedForm.element_id);
-  var form = forms.getByElement(element);
-  handleFormRequest(form, submittedForm.event, submittedForm.errors, submittedForm.data);
+  handleFormRequest(document.getElementById(submittedForm.element_id), submittedForm.event, submittedForm.errors, submittedForm.data);
 }
 
-},{"./misc/scroll-to-element.js":2}],2:[function(require,module,exports){
+},{"./misc/scroll-to-element.js":2,"populate.js":3}],2:[function(require,module,exports){
 "use strict";
 
 function scrollTo(element) {
@@ -81,4 +85,86 @@ function calculateScrollOffset(elem) {
 
 module.exports = scrollTo;
 
+},{}],3:[function(require,module,exports){
+
+/**
+ * Populate form fields from a JSON object.
+ *
+ * @param form object The form element containing your input fields.
+ * @param data array JSON data to populate the fields with.
+ * @param basename string Optional basename which is added to `name` attributes
+ */
+function populate(form, data, basename) {
+	for (var key in data) {
+		if (! data.hasOwnProperty(key)) {
+			continue;
+		}
+
+		var name = key;
+		var value = data[key];
+
+        if ('undefined' === typeof value) {
+            value = '';
+        }
+
+        if (null === value) {
+            value = '';
+        }
+
+		// handle array name attributes
+		if (typeof(basename) !== "undefined") {
+			name = basename + "[" + key + "]";
+		}
+
+		if (value.constructor === Array) {
+			name += '[]';
+		} else if(typeof value == "object") {
+			populate(form, value, name);
+			continue;
+		}
+
+		// only proceed if element is set
+		var element = form.elements.namedItem(name);
+		if (! element) {
+			continue;
+		}
+
+		var type = element.type || element[0].type;
+
+		switch(type ) {
+			default:
+				element.value = value;
+				break;
+
+			case 'radio':
+			case 'checkbox':
+				for (var j=0; j < element.length; j++) {
+					element[j].checked = (value.indexOf(element[j].value) > -1);
+				}
+				break;
+
+			case 'select-multiple':
+				var values = value.constructor == Array ? value : [value];
+
+				for(var k = 0; k < element.options.length; k++) {
+					element.options[k].selected |= (values.indexOf(element.options[k].value) > -1 );
+				}
+				break;
+
+			case 'select':
+			case 'select-one':
+				element.value = value.toString() || value;
+				break;
+
+			case 'date':
+      			element.value = new Date(value).toISOString().split('T')[0];	
+				break;
+		}
+
+	}
+};
+
+if (typeof module !== 'undefined' && module.exports) {
+	module.exports = populate;
+} 
 },{}]},{},[1]);
