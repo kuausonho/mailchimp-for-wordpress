@@ -427,6 +427,7 @@ abstract class MC4WP_Integration {
 			$subscriber->status     = $this->options['double_optin'] ? 'pending' : 'subscribed';
 			$subscriber->email_type = $email_type;
 			$subscriber->ip_signup  = mc4wp_get_request_ip_address();
+			$subscriber->tags = ['ComentarioBlog'];
 
 			/** @ignore (documented elsewhere) */
 			$subscriber = apply_filters( 'mc4wp_subscriber_data', $subscriber );
